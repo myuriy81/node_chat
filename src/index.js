@@ -1,7 +1,7 @@
 /* eslint-disable no-console */
 'use strict';
 import express from 'express';
-import { WebSocketServer } from 'ws';
+import { WebSocketServer, WebSocket } from 'ws';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import {
@@ -45,8 +45,10 @@ wss.on('connection', (ws) => {
 
       addMessage(ws.room, message);
 
+      const wsO = WebSocket.OPEN;
+
       wss.clients.forEach((client) => {
-        if (client.readyState === 1 && client.room === ws.room) {
+        if (wsO) {
           client.send(JSON.stringify({ type: 'message', message }));
         }
       });
