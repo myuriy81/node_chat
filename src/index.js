@@ -28,48 +28,53 @@ wss.on('connection', (ws) => {
   console.log(`New connection`);
 
   ws.on('message', (data) => {
-    const { type, username, room, text, newRoom } = JSON.parse(data);
+    try {
+      const { type, username, room, text, newRoom } = JSON.parse(data);
 
-    if (type === 'join') {
-      ws.room = room;
-      createRoom(room);
-      ws.send(JSON.stringify({ type: 'history', messages: getMessages(room) }));
-    }
+      if (type === 'join') {
+        ws.room = room;
+        createRoom(room);
+        ws.send(
+          JSON.stringify({ type: 'history', messages: getMessages(room) }),
+        );
+      }
 
-    if (type === 'message' && ws.room) {
-      const message = {
-        author: username,
-        time: new Date().toLocaleTimeString(),
-        text,
-      };
+      if (type === 'message' && ws.room) {
+        const message = {
+          author: username,
+          time: new Date().toLocaleTimeString(),
+          text,
+        };
 
-      addMessage(ws.room, message);
+        addMessage(ws.room, message);
 
-      const wsO = WebSocket.OPEN;
+        wss.clients.forEach((client) => {
+          if (client.readyState === WebSocket.OPEN) {
+            client.send(JSON.stringify({ type: 'message', message }));
+          }
+        });
+      }
 
-      wss.clients.forEach((client) => {
-        if (wsO) {
-          client.send(JSON.stringify({ type: 'message', message }));
-        }
-      });
-    }
+      if (type === 'create') {
+        createRoom(room);
+      }
 
-    if (type === 'create') {
-      createRoom(room);
-    }
+      if (type === 'rename') {
+        renameRoom(room, newRoom);
+      }
 
-    if (type === 'rename') {
-      renameRoom(room, newRoom);
-    }
+      if (type === 'delete') {
+        deleteRoom(room);
 
-    if (type === 'delete') {
-      deleteRoom(room);
-
-      wss.clients.forEach((client) => {
-        if (client.room === room) {
-          client.send(JSON.stringify({ type: 'deleted' }));
-        }
-      });
+        wss.clients.forEach((client) => {
+          if (client.room === room) {
+            client.send(JSON.stringify({ type: 'deleted' }));
+          }
+        });
+      }
+    } catch (e) {
+      // eslint-disable-next-line no-console
+      console.error('Error processing message:', e);
     }
   });
 
